@@ -1,0 +1,25 @@
+# dependencies
+node_modules/
+
+# build output
+dist/
+build/
+
+# runtime data & uploads (do not commit user content)
+server/data/*.db
+server/data/*.db-journal
+server/uploads/*
+!server/uploads/.gitkeep
+!server/data/.gitkeep
+
+# local env (real secrets) — only *.example is committed
+.env
+.env.local
+server/.env
+client/.env
+
+# logs & os
+*.log
+npm-debug.log*
+.DS_Store
+Thumbs.db
