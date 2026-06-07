@@ -62,7 +62,8 @@ export function AppLayout() {
 
   const handleLogout = (): void => {
     logout();
-    navigate('/login', { replace: true });
+    // 刷新页面使 workbenchStore 以 'guest' key 重新初始化，避免下一位用户看到前一位的数据
+    window.location.replace('/login');
   };
 
   const userMenu: MenuProps['items'] = [

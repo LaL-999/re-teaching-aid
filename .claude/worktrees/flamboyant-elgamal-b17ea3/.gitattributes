@@ -1,0 +1,12 @@
+# 统一以 LF 存储文本，避免跨平台行尾差异（本项目为 Node/Vite，LF 最稳）
+* text=auto eol=lf
+
+# 二进制文件不做行尾转换
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.woff binary
+*.woff2 binary

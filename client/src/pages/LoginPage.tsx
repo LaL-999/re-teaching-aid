@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { Alert, App, Button, Card, Form, Input, Typography } from 'antd';
 import { LockOutlined, UserOutlined } from '@ant-design/icons';
-import { useNavigate } from 'react-router-dom';
 import { authService } from '../services/authService';
 import { useAuthStore } from '../store/authStore';
 import { getApiErrorMessage } from '../services/http';
@@ -12,7 +11,6 @@ interface LoginForm {
 }
 
 export function LoginPage() {
-  const navigate = useNavigate();
   const setAuth = useAuthStore((state) => state.setAuth);
   const { message } = App.useApp();
   const [loading, setLoading] = useState(false);
@@ -25,7 +23,8 @@ export function LoginPage() {
       const { token, user } = await authService.login(values.studentId.trim(), values.password);
       setAuth(token, user);
       message.success(`欢迎，${user.name}`);
-      navigate('/app', { replace: true });
+      // 刷新页面使 workbenchStore 以当前用户 id 重新初始化 localStorage key，隔离不同用户数据
+      window.location.replace('/app');
     } catch (err) {
       // 「学号或密码错误」「账号不存在」等后端文案在此展示，且停留在登录页
       setError(getApiErrorMessage(err));

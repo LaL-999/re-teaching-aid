@@ -1,0 +1,27 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cmd //c \"npm run install:all\")",
+      "Bash(where npm *)",
+      "Bash(where node *)",
+      "Bash(cmd //c \"dir \\\\\"C:\\\\Program Files\\\\nodejs\\\\\"\")",
+      "Bash(cmd //c \"dir \\\\\"C:\\\\Users\\\\PC\\\\AppData\\\\Roaming\\\\npm\\\\\"\")",
+      "Bash(powershell.exe -Command \"Get-Command npm -ErrorAction SilentlyContinue\")",
+      "Bash(ls -la \"D:/node\")",
+      "Bash(D:/node/npm run *)",
+      "Bash(D:/node/npm install *)",
+      "Bash(cmd //c \"set PATH=D:\\\\node;%PATH% && D:/node/npm install\")",
+      "Bash(ls -lh \"D:/VSBuildTools/installation\" 2>&1 | head -20)",
+      "Bash(ls \"E:\\\\requirement\\\\re-teaching-aid\\\\server\")",
+      "Bash(ls \"E:\\\\requirement\\\\re-teaching-aid\\\\client\")",
+      "Read(//e/requirement/re-teaching-aid/**)",
+      "Bash(Get-Process -Name node -ErrorAction SilentlyContinue)",
+      "Bash(Stop-Process -Force -ErrorAction SilentlyContinue)",
+      "Bash(Start-Sleep -Seconds 2)",
+      "Bash(cmd.exe /c \"set PATH=D:\\\\node;%PATH% && cd server && start /b npm run dev > nul 2>&1\")",
+      "Bash(cmd.exe /c \"set PATH=D:\\\\node;%PATH% && cd client && start /b npm run dev > nul 2>&1\")",
+      "Bash(cmd.exe /c \"curl -s http://localhost:4000/api/health 2>nul\")",
+      "Bash(cmd.exe /c \"curl -s http://localhost:5173 2>nul | head -c 200\")"
+    ]
+  }
+}

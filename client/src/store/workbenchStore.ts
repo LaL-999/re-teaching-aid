@@ -1,6 +1,18 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { createJSONStorage, persist } from 'zustand/middleware';
 import type { QualityIssue, UmlDiagramType } from '../types';
+
+/** 从 localStorage 中读取当前登录用户的 id，用于隔离不同用户的工作台数据。 */
+function currentUserId(): string {
+  try {
+    const raw = localStorage.getItem('reta-auth');
+    if (!raw) return 'guest';
+    const parsed = JSON.parse(raw) as { state?: { user?: { id?: number } } };
+    return String(parsed?.state?.user?.id ?? 'guest');
+  } catch {
+    return 'guest';
+  }
+}
 
 /**
  * 流水线工作台：保存 7 个车间各自的输入与产物。
@@ -86,6 +98,10 @@ export const useWorkbench = create<WorkbenchStore>()(
         set((state) => ({ data: { ...state.data, [key]: emptyData()[key] } })),
       resetAll: () => set({ data: emptyData() }),
     }),
-    { name: 'reta-workbench', version: 1 },
+    {
+      name: `reta-workbench-${currentUserId()}`,
+      version: 1,
+      storage: createJSONStorage(() => localStorage),
+    },
   ),
 );

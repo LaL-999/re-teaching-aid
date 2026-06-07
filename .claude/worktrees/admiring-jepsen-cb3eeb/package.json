@@ -1,0 +1,18 @@
+{
+  "name": "re-teaching-aid",
+  "version": "1.0.0",
+  "private": true,
+  "description": "需求工程教学辅助系统 — 教师/学生双角色，资源管理 + 5 个大模型 AI 工具",
+  "scripts": {
+    "dev": "concurrently -n server,client -c blue,green \"npm:dev:server\" \"npm:dev:client\"",
+    "dev:server": "npm --prefix server run dev",
+    "dev:client": "npm --prefix client run dev",
+    "build": "npm --prefix server run build && npm --prefix client run build",
+    "test": "npm --prefix server test && npm --prefix client test",
+    "seed": "npm --prefix server run seed",
+    "install:all": "npm install && npm --prefix server install && npm --prefix client install"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0"
+  }
+}

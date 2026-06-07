@@ -23,6 +23,8 @@ http.interceptors.response.use(
   (error: AxiosError) => {
     if (error.response?.status === 401) {
       useAuthStore.getState().logout();
+      // token 失效时刷新页面，确保 workbenchStore 清除当前用户的内存数据
+      window.location.replace('/login');
     }
     return Promise.reject(error);
   },
