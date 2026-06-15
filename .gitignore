@@ -6,8 +6,7 @@ dist/
 build/
 
 # runtime data & uploads (do not commit user content)
-server/data/*.db
-server/data/*.db-journal
+server/data/*.db*
 server/uploads/*
 !server/uploads/.gitkeep
 !server/data/.gitkeep
@@ -23,3 +22,10 @@ client/.env
 npm-debug.log*
 .DS_Store
 Thumbs.db
+
+# IDE / editor
+.idea/
+.vscode/
+
+# Claude Code 临时工作副本（agent worktrees，切勿入库）
+.claude/worktrees/
