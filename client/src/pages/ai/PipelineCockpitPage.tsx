@@ -57,18 +57,30 @@ export function PipelineCockpitPage() {
     // 局部进度计数，避免在 catch 中读到 setState 的陈旧闭包值
     let done = 0;
     try {
+      // ① 产品概要
       const ov = await aiService.overview(idea.trim());
       patch('overview', { overview: ov.overview });
       saveVersion('overview', '一键贯通', ov.overview);
       done = 1;
       setStep(1);
 
-      const rq = await aiService.requirements(ov.overview);
-      patch('requirements', { source: ov.overview, requirements: rq.requirements });
-      saveVersion('requirements', '一键贯通', rq.requirements);
+      // ② 访谈提纲（以一句话想法为领域，产出访谈问题作为需求获取辅助）
+      const iv = await aiService.interview(idea.trim());
+      patch('interview', { domain: idea.trim(), questions: iv.questions });
+      if (iv.questions.length > 0) {
+        saveVersion('interview', '一键贯通', iv.questions.map((q, i) => `${i + 1}. ${q}`).join('\n'));
+      }
       done = 2;
       setStep(2);
 
+      // ③ 具体需求（基于产品概要）
+      const rq = await aiService.requirements(ov.overview);
+      patch('requirements', { source: ov.overview, requirements: rq.requirements });
+      saveVersion('requirements', '一键贯通', rq.requirements);
+      done = 3;
+      setStep(3);
+
+      // ④ 需求分析与审查
       const rv = await aiService.review(rq.requirements);
       patch('review', {
         text: rq.requirements,
@@ -77,10 +89,10 @@ export function PipelineCockpitPage() {
         optimized: rv.optimized,
       });
       if (rv.optimized.trim()) saveVersion('review', '一键贯通', rv.optimized);
-      done = 3;
-      setStep(3);
+      done = 4;
+      setStep(4);
 
-      message.success('已贯通 ① → ③ → ④，可继续生成 ⑤ i* / ⑥ UML / ⑦ SRS / ⑧ 追踪');
+      message.success('已贯通 ① → ② → ③ → ④，可继续生成 ⑤ i* / ⑥ UML / ⑦ SRS / ⑧ 追踪');
     } catch (err) {
       // done = 当前正在执行（失败）的步骤下标
       setFailedStep(done);
@@ -110,7 +122,7 @@ export function PipelineCockpitPage() {
             流水线驾驶舱
           </Typography.Title>
           <Typography.Paragraph type="secondary" style={{ margin: '4px 0 0' }}>
-            一句话直达：从一句话想法自动贯通「概要 → 具体需求 → 分析审查」，再按需推进建模与规格。当前已完成 {doneCount} / {PIPELINE_STAGES.length} 个车间。
+            一句话直达：从一句话想法自动贯通「概要 → 访谈提纲 → 具体需求 → 分析审查」，再按需推进建模与规格。当前已完成 {doneCount} / {PIPELINE_STAGES.length} 个车间。
           </Typography.Paragraph>
         </div>
       </div>
@@ -142,14 +154,14 @@ export function PipelineCockpitPage() {
           onClick={runChain}
           disabled={!idea.trim()}
         >
-          一键贯通 ① → ③ → ④
+          一键贯通 ① → ② → ③ → ④
         </Button>
         {(running || step > 0 || failedStep >= 0) && (
           <Steps
             size="small"
             current={step}
             style={{ marginTop: 18 }}
-            items={['产品概要', '具体需求', '需求分析与审查'].map((title, i) => ({
+            items={['产品概要', '访谈提纲', '具体需求', '需求分析与审查'].map((title, i) => ({
               title,
               status: stepStatus(i),
             }))}
