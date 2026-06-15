@@ -1,5 +1,13 @@
 import { http } from './http';
-import type { AiMode, AiStatus, QualityIssue, UmlDiagramType } from '../types';
+import type {
+  AiMode,
+  AiStatus,
+  PromptStageKey,
+  PromptTemplate,
+  QualityIssue,
+  TraceLink,
+  UmlDiagramType,
+} from '../types';
 
 export const aiService = {
   async status(): Promise<AiStatus> {
@@ -90,5 +98,39 @@ export const aiService = {
       input,
     );
     return data;
+  },
+
+  // ⑧ 需求追踪矩阵：具体需求 + SRS → 需求↔系统 链路
+  async trace(
+    requirements: string,
+    srs: string,
+  ): Promise<{ links: TraceLink[]; summary: string; mode: AiMode }> {
+    const { data } = await http.post<{ links: TraceLink[]; summary: string; mode: AiMode }>(
+      '/api/ai/trace',
+      { requirements, srs },
+    );
+    return data;
+  },
+
+  // —— 提示词工坊 ——
+  async promptTemplates(): Promise<PromptTemplate[]> {
+    const { data } = await http.get<{ templates: PromptTemplate[] }>('/api/ai/prompt-templates');
+    return data.templates;
+  },
+
+  async updatePromptTemplate(stage: PromptStageKey, system: string): Promise<PromptTemplate> {
+    const { data } = await http.put<{ template: PromptTemplate }>(
+      `/api/ai/prompt-templates/${stage}`,
+      { system },
+    );
+    return data.template;
+  },
+
+  async resetPromptTemplate(stage: PromptStageKey): Promise<PromptTemplate> {
+    const { data } = await http.post<{ template: PromptTemplate }>(
+      `/api/ai/prompt-templates/${stage}/reset`,
+      {},
+    );
+    return data.template;
   },
 };

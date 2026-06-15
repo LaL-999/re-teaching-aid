@@ -27,4 +27,13 @@ export interface QualityIssue {
   suggestion: string;
 }
 
+/** 需求追踪矩阵的一条链：需求条目 ↔ SRS 章节 ↔ 系统组件。 */
+export interface TraceLink {
+  reqId: string;
+  requirement: string;
+  srsRef: string;
+  component: string;
+  status: string;
+}
+
 export type AiMode = 'live' | 'mock';

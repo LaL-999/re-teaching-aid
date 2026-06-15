@@ -7,6 +7,7 @@ build/
 
 # runtime data & uploads (do not commit user content)
 server/data/*.db*
+server/data/prompt-templates.json
 server/uploads/*
 !server/uploads/.gitkeep
 !server/data/.gitkeep

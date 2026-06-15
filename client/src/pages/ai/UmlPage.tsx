@@ -1,18 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import {
-  Alert,
-  App,
-  Button,
-  Card,
-  Col,
-  Input,
-  Popconfirm,
-  Row,
-  Select,
-  Space,
-  Spin,
-  Typography,
-} from 'antd';
+import { Alert, App, Button, Card, Col, Input, Popconfirm, Row, Select, Space, Spin, Typography } from 'antd';
 import {
   ClearOutlined,
   DownloadOutlined,
@@ -23,9 +10,9 @@ import {
 } from '@ant-design/icons';
 import { aiService } from '../../services/aiService';
 import { getApiErrorMessage } from '../../services/http';
-import { AiModeBanner } from '../../components/AiModeBanner';
+import { StageScaffold } from '../../components/StageScaffold';
 import { CopyButton } from '../../components/CopyButton';
-import { PipelineNav } from '../../components/PipelineNav';
+import { VersionTimeline } from '../../components/VersionTimeline';
 import { saveText } from '../../utils/file';
 import { useWorkbench } from '../../store/workbenchStore';
 import type { UmlDiagramType } from '../../types';
@@ -36,6 +23,7 @@ const DIAGRAM_OPTIONS: Array<{ value: UmlDiagramType; label: string }> = [
   { value: 'class', label: '类图' },
 ];
 
+/** ⑥ UML 建模与预览 —— AI 生成 PlantUML 代码并在线编译预览，改码即重编。 */
 export function UmlPage() {
   const { message } = App.useApp();
   const description = useWorkbench((s) => s.data.uml.description);
@@ -45,6 +33,7 @@ export function UmlPage() {
   const requirements = useWorkbench((s) => s.data.requirements.requirements);
   const patch = useWorkbench((s) => s.patch);
   const reset = useWorkbench((s) => s.reset);
+  const saveVersion = useWorkbench((s) => s.saveVersion);
 
   const [svg, setSvg] = useState('');
   const [externalUrl, setExternalUrl] = useState('');
@@ -71,9 +60,9 @@ export function UmlPage() {
     setGenerating(true);
     try {
       const result = await aiService.generateUml(description.trim(), diagramType);
-      patch('uml', { code: result.code }); // 触发下方防抖自动编译
+      patch('uml', { code: result.code });
+      saveVersion('uml', '生成', result.code);
     } catch (err) {
-      // 过简 → 「需求描述过于简单，请提供更详细的系统功能说明」
       message.error(getApiErrorMessage(err));
     } finally {
       setGenerating(false);
@@ -81,13 +70,12 @@ export function UmlPage() {
   };
 
   const handleRefine = async (): Promise<void> => {
-    if (!code.trim()) {
-      return;
-    }
+    if (!code.trim()) return;
     setRefining(true);
     try {
       const result = await aiService.refine('UML / PlantUML 代码', code);
       patch('uml', { code: result.refined });
+      saveVersion('uml', '审核优化', result.refined);
       message.success(result.mode === 'mock' ? '离线模式未实质改写' : '已审核并优化');
     } catch (err) {
       message.error(getApiErrorMessage(err));
@@ -116,7 +104,6 @@ export function UmlPage() {
       setSvg(result.svg);
       setExternalUrl(result.externalUrl);
     } catch (err) {
-      // 语法错误 → 「编译失败：…」
       setRenderError(getApiErrorMessage(err));
       setSvg('');
     } finally {
@@ -126,9 +113,7 @@ export function UmlPage() {
 
   // 改码即重编：防抖 800ms
   useEffect(() => {
-    if (!code.trim()) {
-      return undefined;
-    }
+    if (!code.trim()) return undefined;
     const timer = window.setTimeout(() => {
       void renderCode(code);
     }, 800);
@@ -138,25 +123,21 @@ export function UmlPage() {
   const svgDataUrl = svg ? `data:image/svg+xml;utf8,${encodeURIComponent(svg)}` : '';
 
   return (
-    <>
-      <Typography.Title level={4} style={{ marginTop: 0 }}>
-        ⑥ UML 建模与预览
-      </Typography.Title>
-      <Typography.Paragraph type="secondary">
-        输入（或从上游载入）系统描述并选择图形类型，AI 生成 PlantUML 代码并在线编译预览；修改或审核优化代码会自动重新编译。
-      </Typography.Paragraph>
-
-      <PipelineNav current="uml" />
-      <AiModeBanner />
-
+    <StageScaffold
+      badge="⑥"
+      title="UML 建模与预览"
+      subtitle="输入（或从上游载入）系统描述并选择图形类型，AI 生成 PlantUML 代码并在线编译预览；修改或审核优化代码会自动重新编译。"
+      navCurrent="uml"
+      promptStage="uml"
+    >
       <Row gutter={16}>
         <Col xs={24} lg={11}>
-          <Card size="small" title="输入与代码" style={{ marginBottom: 16 }}>
+          <Card size="small" className="surface-card" title="输入与代码" style={{ marginBottom: 16 }}>
             <Space direction="vertical" style={{ width: '100%' }} size={12}>
               <Input.TextArea
                 value={description}
                 onChange={(e) => patch('uml', { description: e.target.value })}
-                rows={4}
+                autoSize={{ minRows: 4, maxRows: 10 }}
                 placeholder="如 外卖系统包括学生顾客、商家、骑手，学生可以提交订单、支付订单，商家可以接单，骑手可以配送"
               />
               <Space wrap>
@@ -182,7 +163,7 @@ export function UmlPage() {
                 <Input.TextArea
                   value={code}
                   onChange={(e) => patch('uml', { code: e.target.value })}
-                  rows={12}
+                  autoSize={{ minRows: 12, maxRows: 22 }}
                   placeholder="生成后将在此显示，可直接编辑…"
                   className="code-block"
                   style={{ marginTop: 6 }}
@@ -207,6 +188,7 @@ export function UmlPage() {
                 >
                   审核并优化
                 </Button>
+                <VersionTimeline stageKey="uml" currentText={code} />
                 <Popconfirm
                   title="清空本车间的输入与代码？"
                   okText="清空"
@@ -226,6 +208,7 @@ export function UmlPage() {
         <Col xs={24} lg={13}>
           <Card
             size="small"
+            className="surface-card"
             title="编译预览"
             extra={
               <Space>
@@ -262,21 +245,20 @@ export function UmlPage() {
                   textAlign: 'center',
                   overflow: 'auto',
                   border: '1px solid #f0f0f0',
-                  borderRadius: 6,
+                  borderRadius: 8,
                   padding: 12,
                   minHeight: 200,
+                  background: '#fff',
                 }}
               >
                 <img src={svgDataUrl} alt="UML 图形预览" style={{ maxWidth: '100%' }} />
               </div>
             ) : (
-              <Typography.Text type="secondary">
-                生成或输入代码后将在此显示图形预览。
-              </Typography.Text>
+              <Typography.Text type="secondary">生成或输入代码后将在此显示图形预览。</Typography.Text>
             )}
           </Card>
         </Col>
       </Row>
-    </>
+    </StageScaffold>
   );
 }

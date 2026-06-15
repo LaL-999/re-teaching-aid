@@ -90,3 +90,36 @@ export interface AiStatus {
   mode: AiMode;
   model: string;
 }
+
+/** 需求追踪矩阵的一条链：需求条目 ↔ SRS 章节 ↔ 系统组件。 */
+export interface TraceLink {
+  reqId: string;
+  requirement: string;
+  srsRef: string;
+  component: string;
+  status: string;
+}
+
+/** 提示词工坊：流水线某阶段的可编辑输出格式提示词。 */
+export type PromptStageKey =
+  | 'overview'
+  | 'interview'
+  | 'requirements'
+  | 'review'
+  | 'istar'
+  | 'uml'
+  | 'srs'
+  | 'trace';
+
+export interface PromptTemplate {
+  key: PromptStageKey;
+  label: string;
+  description: string;
+  output: 'markdown' | 'json' | 'code';
+  /** 当前生效的提示词（覆盖优先，否则默认） */
+  system: string;
+  /** 出厂默认提示词，用于「重置」对照 */
+  default: string;
+  /** 是否已被教师自定义覆盖 */
+  isCustom: boolean;
+}

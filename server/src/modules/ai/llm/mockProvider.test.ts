@@ -60,4 +60,40 @@ describe('MockProvider', () => {
     expect(raw).toContain('## 4 非功能需求');
     expect(raw).toContain('作为系统用户，我希望');
   });
+
+  it('i* 模型：输出结构化 JSON（actors 含节点、links 同 actor 内连边）', async () => {
+    const raw = await provider.complete(
+      [{ role: 'user', content: '顾客希望准时收到外卖，商家希望快速出餐' }],
+      { tag: 'istar' },
+    );
+    const data = JSON.parse(raw) as {
+      actors: Array<{ name: string; nodes: Array<{ name: string; type: string }> }>;
+      links: Array<{ source: string; target: string; type: string }>;
+    };
+    expect(data.actors.length).toBeGreaterThanOrEqual(2);
+    expect(data.actors[0]!.nodes.length).toBeGreaterThan(0);
+    expect(data.links.length).toBeGreaterThan(0);
+    // 每条 link 的端点都应能在某个 actor 的节点集合中找到（同 actor 内连边）
+    const nodeNames = new Set(data.actors.flatMap((a) => a.nodes.map((n) => n.name)));
+    for (const link of data.links) {
+      expect(nodeNames.has(link.source)).toBe(true);
+      expect(nodeNames.has(link.target)).toBe(true);
+    }
+  });
+
+  it('需求追踪：从需求标题建立追踪链', async () => {
+    const raw = await provider.complete(
+      [
+        {
+          role: 'user',
+          content: '【具体需求】\n## 模块 1：在线下单\n## 模块 2：支付订单\n\n【SRS 文档】\n## 3 功能需求',
+        },
+      ],
+      { tag: 'trace' },
+    );
+    const data = JSON.parse(raw) as { links: Array<{ requirement: string; status: string }> };
+    expect(data.links.length).toBe(2);
+    expect(data.links[0]!.requirement).toContain('在线下单');
+    expect(data.links[0]!.status).toBe('已覆盖');
+  });
 });

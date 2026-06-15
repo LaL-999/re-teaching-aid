@@ -1,15 +1,16 @@
 import { useState } from 'react';
-import { App, Button, Card, Input, Popconfirm, Space, Tabs, Typography } from 'antd';
-import { ClearOutlined, DownloadOutlined, FileAddOutlined } from '@ant-design/icons';
+import { App, Button, Card, Collapse, Input, Space, Tabs, Typography } from 'antd';
+import { DownloadOutlined, FileAddOutlined, FileTextOutlined, ImportOutlined } from '@ant-design/icons';
 import { aiService } from '../../services/aiService';
 import { getApiErrorMessage } from '../../services/http';
-import { AiModeBanner } from '../../components/AiModeBanner';
-import { PipelineNav } from '../../components/PipelineNav';
+import { StageScaffold } from '../../components/StageScaffold';
 import { CopyButton } from '../../components/CopyButton';
+import { PipelineStageActions } from '../../components/PipelineStageActions';
+import { VersionTimeline } from '../../components/VersionTimeline';
 import { saveText } from '../../utils/file';
 import { useWorkbench } from '../../store/workbenchStore';
 
-/** 取 HTML 文档 <body> 内部，用于把“补充章节”并入主文档。 */
+/** 取 HTML 文档 <body> 内部，用于把"补充章节"并入主文档。 */
 function bodyInner(htmlDoc: string): string {
   const matched = htmlDoc.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
   return matched ? matched[1]! : htmlDoc;
@@ -23,6 +24,10 @@ function mergeHtml(mainHtml: string, sectionHtml: string): string {
   return mainHtml + section;
 }
 
+/**
+ * ⑦ SRS 规格说明书 —— 素材驱动：直接由上游「优化后需求 / 具体需求」一键生成，
+ * 不再强制手填项目名称与功能点（手填项收进「高级选项」），让 SRS 也能纳入一句话端到端闭环。
+ */
 export function SrsPage() {
   const { message } = App.useApp();
   const projectName = useWorkbench((s) => s.data.srs.projectName);
@@ -31,8 +36,11 @@ export function SrsPage() {
   const material = useWorkbench((s) => s.data.srs.material);
   const markdown = useWorkbench((s) => s.data.srs.markdown);
   const html = useWorkbench((s) => s.data.srs.html);
+  const optimized = useWorkbench((s) => s.data.review.optimized);
+  const requirements = useWorkbench((s) => s.data.requirements.requirements);
   const patch = useWorkbench((s) => s.patch);
   const reset = useWorkbench((s) => s.reset);
+  const saveVersion = useWorkbench((s) => s.saveVersion);
   const [loading, setLoading] = useState(false);
   const [supplementing, setSupplementing] = useState(false);
 
@@ -41,6 +49,18 @@ export function SrsPage() {
       .split('\n')
       .map((line) => line.trim())
       .filter(Boolean);
+
+  const loadFromUpstream = (source: 'review' | 'requirements'): void => {
+    const content = source === 'review' ? optimized.trim() : requirements.trim();
+    if (!content) {
+      message.warning(source === 'review' ? '④ 优化后需求尚无内容' : '③ 具体需求尚无内容');
+      return;
+    }
+    patch('srs', { material: content });
+    message.success('已载入上游需求素材');
+  };
+
+  const canGenerate = material.trim().length > 0 || (projectName.trim() && parseFeatures().length > 0);
 
   const handleGenerate = async (): Promise<void> => {
     setLoading(true);
@@ -52,8 +72,8 @@ export function SrsPage() {
         material: material.trim() || undefined,
       });
       patch('srs', { markdown: data.markdown, html: data.html });
+      saveVersion('srs', '生成', data.markdown);
     } catch (err) {
-      // 缺少名称或功能点 → 「请填写项目名称和至少一个功能点」
       message.error(getApiErrorMessage(err));
     } finally {
       setLoading(false);
@@ -61,9 +81,7 @@ export function SrsPage() {
   };
 
   const handleSupplement = async (): Promise<void> => {
-    if (!markdown) {
-      return;
-    }
+    if (!markdown) return;
     setSupplementing(true);
     try {
       const data = await aiService.srs({
@@ -73,10 +91,9 @@ export function SrsPage() {
         material: material.trim() || undefined,
         supplement: 'nonfunctional',
       });
-      patch('srs', {
-        markdown: `${markdown}\n\n${data.markdown}`,
-        html: mergeHtml(html, data.html),
-      });
+      const nextMarkdown = `${markdown}\n\n${data.markdown}`;
+      patch('srs', { markdown: nextMarkdown, html: mergeHtml(html, data.html) });
+      saveVersion('srs', '补充非功能需求', nextMarkdown);
       message.success('已补充非功能需求章节');
     } catch (err) {
       message.error(getApiErrorMessage(err));
@@ -88,50 +105,74 @@ export function SrsPage() {
   const fileBase = projectName.trim() || 'SRS';
 
   return (
-    <>
-      <Typography.Title level={4} style={{ marginTop: 0 }}>
-        ⑦ SRS 规格说明书
-      </Typography.Title>
-      <Typography.Paragraph type="secondary">
-        填写项目名称与功能点（可附上游需求素材），AI 按 GB/T 9385 结构生成 SRS 初稿（功能需求采用用户故事格式），可导出 Markdown / HTML。
-      </Typography.Paragraph>
-
-      <PipelineNav current="srs" />
-      <AiModeBanner />
-
-      <Card size="small" style={{ marginBottom: 16 }}>
+    <StageScaffold
+      badge="⑦"
+      title="SRS 规格说明书"
+      subtitle="把上游需求素材一键生成符合 GB/T 9385 的 SRS 初稿（功能需求采用用户故事格式），可导出 Markdown / HTML。无需手填，素材即可成稿。"
+      navCurrent="srs"
+      promptStage="srs"
+    >
+      <Card size="small" className="surface-card" style={{ marginBottom: 16 }}>
         <Space direction="vertical" style={{ width: '100%' }} size={12}>
-          <Input
-            value={projectName}
-            onChange={(e) => patch('srs', { projectName: e.target.value })}
-            placeholder="项目名称，如 校园外卖系统"
-            addonBefore="项目名称"
-          />
-          <Input.TextArea
-            value={featuresText}
-            onChange={(e) => patch('srs', { featuresText: e.target.value })}
-            rows={5}
-            placeholder={'主要功能点，每行一个，如：\n用户注册登录\n浏览商家\n提交订单\n支付订单\n订单跟踪'}
-          />
-          <Input.TextArea
-            value={background}
-            onChange={(e) => patch('srs', { background: e.target.value })}
-            rows={2}
-            placeholder="项目背景（可选）"
-          />
           <div>
-            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-              上游需求素材（可选，来自「④ 需求分析与审查」的发送）
-            </Typography.Text>
+            <Typography.Text strong>需求素材（流水线主入口）</Typography.Text>
             <Input.TextArea
               value={material}
               onChange={(e) => patch('srs', { material: e.target.value })}
-              rows={3}
-              placeholder="可留空；若由上游发送，则作为生成 SRS 的额外依据。"
+              autoSize={{ minRows: 6, maxRows: 16 }}
+              placeholder="把上游「优化后需求 / 具体需求」粘贴或一键载入到这里，AI 会自动提炼项目名称、功能点与背景生成 SRS。"
               style={{ marginTop: 6 }}
             />
           </div>
-          <Button type="primary" size="large" loading={loading} onClick={handleGenerate}>
+          <Space wrap>
+            <Button icon={<ImportOutlined />} onClick={() => loadFromUpstream('review')}>
+              从 ④ 优化后需求载入
+            </Button>
+            <Button icon={<ImportOutlined />} onClick={() => loadFromUpstream('requirements')}>
+              从 ③ 具体需求载入
+            </Button>
+          </Space>
+
+          <Collapse
+            ghost
+            items={[
+              {
+                key: 'advanced',
+                label: '高级选项（可选）：手动指定项目名称 / 功能点 / 背景',
+                children: (
+                  <Space direction="vertical" style={{ width: '100%' }} size={10}>
+                    <Input
+                      value={projectName}
+                      onChange={(e) => patch('srs', { projectName: e.target.value })}
+                      placeholder="项目名称（留空则由 AI 从素材提炼）"
+                      addonBefore="项目名称"
+                    />
+                    <Input.TextArea
+                      value={featuresText}
+                      onChange={(e) => patch('srs', { featuresText: e.target.value })}
+                      autoSize={{ minRows: 3, maxRows: 8 }}
+                      placeholder={'主要功能点，每行一个（留空则由 AI 从素材提炼）'}
+                    />
+                    <Input.TextArea
+                      value={background}
+                      onChange={(e) => patch('srs', { background: e.target.value })}
+                      autoSize={{ minRows: 2, maxRows: 5 }}
+                      placeholder="项目背景（可选）"
+                    />
+                  </Space>
+                ),
+              },
+            ]}
+          />
+
+          <Button
+            type="primary"
+            size="large"
+            icon={<FileTextOutlined />}
+            loading={loading}
+            onClick={handleGenerate}
+            disabled={!canGenerate}
+          >
             生成 SRS
           </Button>
           {loading && (
@@ -145,9 +186,11 @@ export function SrsPage() {
       {markdown && (
         <Card
           size="small"
+          className="surface-card"
           title="SRS 初稿"
           extra={
             <Space wrap>
+              <VersionTimeline stageKey="srs" currentText={markdown} />
               <Button icon={<FileAddOutlined />} onClick={handleSupplement} loading={supplementing}>
                 补充非功能需求
               </Button>
@@ -156,7 +199,7 @@ export function SrsPage() {
                 icon={<DownloadOutlined />}
                 onClick={() => saveText(markdown, `${fileBase}.md`, 'text/markdown;charset=utf-8')}
               >
-                下载 Markdown
+                下载 MD
               </Button>
               <Button
                 icon={<DownloadOutlined />}
@@ -164,17 +207,6 @@ export function SrsPage() {
               >
                 下载 HTML
               </Button>
-              <Popconfirm
-                title="清空本车间的输入与产物？"
-                okText="清空"
-                cancelText="取消"
-                okButtonProps={{ danger: true }}
-                onConfirm={() => reset('srs')}
-              >
-                <Button danger icon={<ClearOutlined />}>
-                  清空
-                </Button>
-              </Popconfirm>
             </Space>
           }
         >
@@ -188,12 +220,7 @@ export function SrsPage() {
                     title="SRS 排版预览"
                     srcDoc={html}
                     sandbox=""
-                    style={{
-                      width: '100%',
-                      height: '60vh',
-                      border: '1px solid #f0f0f0',
-                      borderRadius: 6,
-                    }}
+                    style={{ width: '100%', height: '60vh', border: '1px solid #f0f0f0', borderRadius: 8 }}
                   />
                 ),
               },
@@ -208,9 +235,9 @@ export function SrsPage() {
                       maxHeight: '60vh',
                       overflow: 'auto',
                       whiteSpace: 'pre-wrap',
-                      background: '#fafafa',
+                      background: '#fafafe',
                       padding: 12,
-                      borderRadius: 6,
+                      borderRadius: 8,
                     }}
                   >
                     {markdown}
@@ -219,8 +246,28 @@ export function SrsPage() {
               },
             ]}
           />
+          <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid #f0f0f0' }}>
+            <PipelineStageActions
+              content={markdown}
+              stageLabel="SRS 文档"
+              downloadName={`${fileBase}.md`}
+              copyLabel="复制 Markdown"
+              onRefined={(refined) => {
+                patch('srs', { markdown: refined });
+                saveVersion('srs', '审核优化', refined);
+              }}
+              onClear={() => reset('srs')}
+              nextTargets={[
+                {
+                  label: '发送到 ⑧ 需求追踪',
+                  to: '/app/tools/trace',
+                  apply: (content) => patch('trace', { srs: content }),
+                },
+              ]}
+            />
+          </div>
         </Card>
       )}
-    </>
+    </StageScaffold>
   );
 }

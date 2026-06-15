@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { Alert, App, Button, Card, Form, Input, Typography } from 'antd';
-import { LockOutlined, UserOutlined } from '@ant-design/icons';
+import { Alert, App, Button, Form, Input, Typography } from 'antd';
+import { ExperimentOutlined, LockOutlined, UserOutlined } from '@ant-design/icons';
 import { authService } from '../services/authService';
 import { useAuthStore } from '../store/authStore';
 import { getApiErrorMessage } from '../services/http';
@@ -9,6 +9,8 @@ interface LoginForm {
   studentId: string;
   password: string;
 }
+
+const HIGHLIGHTS = ['① 产品概要', '③ 具体需求', '④ 分析审查', '⑤ i* 建模', '⑥ UML', '⑦ SRS', '⑧ 需求追踪'];
 
 export function LoginPage() {
   const setAuth = useAuthStore((state) => state.setAuth);
@@ -34,49 +36,75 @@ export function LoginPage() {
   };
 
   return (
-    <div
-      style={{
-        minHeight: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: 'linear-gradient(135deg, rgba(22,119,255,0.13), rgba(82,196,26,0.08))',
-        padding: 16,
-      }}
-    >
-      <Card style={{ width: 384, boxShadow: '0 8px 30px rgba(0,0,0,0.08)' }}>
-        <Typography.Title level={3} style={{ textAlign: 'center', marginBottom: 2 }}>
-          需求工程教学辅助系统
+    <div className="login-shell">
+      <div className="login-hero">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 28 }}>
+          <span
+            style={{
+              width: 44,
+              height: 44,
+              borderRadius: 13,
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: 22,
+              background: 'rgba(255,255,255,0.18)',
+              border: '1px solid rgba(255,255,255,0.25)',
+            }}
+          >
+            <ExperimentOutlined />
+          </span>
+          <Typography.Text style={{ color: '#fff', fontSize: 18, fontWeight: 600 }}>
+            需求工程教学辅助系统
+          </Typography.Text>
+        </div>
+        <Typography.Title style={{ color: '#fff', fontSize: 38, lineHeight: 1.25, margin: 0 }}>
+          一句话想法，
+          <br />
+          端到端跑通需求工程
         </Typography.Title>
-        <Typography.Paragraph type="secondary" style={{ textAlign: 'center' }}>
-          请使用学号与密码登录
+        <Typography.Paragraph style={{ color: 'rgba(255,255,255,0.86)', fontSize: 16, marginTop: 16, maxWidth: 460 }}>
+          AI 流水线把概要、需求、分析审查、建模、规格与追踪逐级串联；产物可版本迭代、输出格式可自定义。
         </Typography.Paragraph>
+        <div style={{ marginTop: 18, maxWidth: 500 }}>
+          {HIGHLIGHTS.map((item) => (
+            <span className="login-chip" key={item}>
+              {item}
+            </span>
+          ))}
+        </div>
+      </div>
 
-        {error && <Alert type="error" showIcon message={error} style={{ marginBottom: 16 }} />}
+      <div className="login-form-pane">
+        <div style={{ width: 360, maxWidth: '100%' }} className="fade-in-up">
+          <Typography.Title level={3} style={{ marginBottom: 4 }}>
+            欢迎回来
+          </Typography.Title>
+          <Typography.Paragraph type="secondary" style={{ marginBottom: 24 }}>
+            请使用学号与密码登录
+          </Typography.Paragraph>
 
-        <Form<LoginForm>
-          layout="vertical"
-          onFinish={handleFinish}
-          requiredMark={false}
-          disabled={loading}
-        >
-          <Form.Item name="studentId" label="学号" rules={[{ required: true, message: '请输入学号' }]}>
-            <Input prefix={<UserOutlined />} placeholder="如 2024001" size="large" autoFocus />
-          </Form.Item>
-          <Form.Item name="password" label="密码" rules={[{ required: true, message: '请输入密码' }]}>
-            <Input.Password prefix={<LockOutlined />} placeholder="请输入密码" size="large" />
-          </Form.Item>
-          <Form.Item style={{ marginBottom: 8 }}>
-            <Button type="primary" htmlType="submit" block size="large" loading={loading}>
-              登录
-            </Button>
-          </Form.Item>
-        </Form>
+          {error && <Alert type="error" showIcon message={error} style={{ marginBottom: 16 }} />}
 
-        <Typography.Paragraph type="secondary" style={{ fontSize: 12, marginBottom: 0 }}>
-          演示账号：教师 2024001 / 123456 · 学生 2024100 / 123456
-        </Typography.Paragraph>
-      </Card>
+          <Form<LoginForm> layout="vertical" onFinish={handleFinish} requiredMark={false} disabled={loading}>
+            <Form.Item name="studentId" label="学号" rules={[{ required: true, message: '请输入学号' }]}>
+              <Input prefix={<UserOutlined />} placeholder="如 2024001" size="large" autoFocus />
+            </Form.Item>
+            <Form.Item name="password" label="密码" rules={[{ required: true, message: '请输入密码' }]}>
+              <Input.Password prefix={<LockOutlined />} placeholder="请输入密码" size="large" />
+            </Form.Item>
+            <Form.Item style={{ marginBottom: 12 }}>
+              <Button type="primary" htmlType="submit" block size="large" loading={loading}>
+                登录
+              </Button>
+            </Form.Item>
+          </Form>
+
+          <Typography.Paragraph type="secondary" style={{ fontSize: 12, marginBottom: 0 }}>
+            演示账号：教师 2024001 / 123456 · 学生 2024100 / 123456
+          </Typography.Paragraph>
+        </div>
+      </div>
     </div>
   );
 }

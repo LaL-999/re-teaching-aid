@@ -1,6 +1,12 @@
 import type { Request, Response } from 'express';
-import { asyncHandler } from '../../middleware/error';
+import { asyncHandler, AppError } from '../../middleware/error';
 import { aiService } from './ai.service';
+import {
+  isPromptStage,
+  listPromptTemplates,
+  resetPromptTemplate,
+  setPromptTemplate,
+} from './promptTemplates';
 import type { SrsInput } from './types';
 
 function asString(value: unknown): string {
@@ -78,5 +84,39 @@ export const aiController = {
     };
     const result = await aiService.srs(input);
     res.json(result);
+  }),
+
+  trace: asyncHandler(async (req: Request, res: Response) => {
+    const result = await aiService.trace(
+      asString(req.body?.requirements),
+      asString(req.body?.srs),
+    );
+    res.json(result);
+  }),
+
+  // —— 提示词工坊：各阶段输出格式提示词的读取 / 编辑 / 重置（编辑仅教师） ——
+
+  promptTemplates: asyncHandler(async (_req: Request, res: Response) => {
+    res.json({ templates: listPromptTemplates() });
+  }),
+
+  updatePromptTemplate: asyncHandler(async (req: Request, res: Response) => {
+    const stage = asString(req.params.stage);
+    if (!isPromptStage(stage)) {
+      throw new AppError(400, '未知的流水线阶段');
+    }
+    const system = asString(req.body?.system).trim();
+    if (!system) {
+      throw new AppError(400, '提示词不能为空');
+    }
+    res.json({ template: setPromptTemplate(stage, system) });
+  }),
+
+  resetPromptTemplate: asyncHandler(async (req: Request, res: Response) => {
+    const stage = asString(req.params.stage);
+    if (!isPromptStage(stage)) {
+      throw new AppError(400, '未知的流水线阶段');
+    }
+    res.json({ template: resetPromptTemplate(stage) });
   }),
 };

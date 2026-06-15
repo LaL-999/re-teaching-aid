@@ -4,7 +4,13 @@ import { LlmError, LlmTimeoutError } from './llm/errors';
 import { markdownToHtml } from './markdown';
 import { encodePlantumlUrl, renderPlantumlSvg } from './plantuml';
 import { prompts } from './prompts';
-import { isUmlDiagramType, type AiMode, type QualityIssue, type SrsInput } from './types';
+import {
+  isUmlDiagramType,
+  type AiMode,
+  type QualityIssue,
+  type SrsInput,
+  type TraceLink,
+} from './types';
 
 function currentMode(): AiMode {
   return isUsingMock() ? 'mock' : 'live';
@@ -39,7 +45,8 @@ function generateUuid(): string {
 
 /** 从 AI 生成的简化 JSON 转换为 piStar 完整 JSON 格式 */
 function convertToIstarJson(simplified: unknown): string {
-  const data = simplified as {
+  // 解析失败（模型未返回有效 JSON）时退化为空结构而非抛错，避免不透明 500，与 review/trace 一致降级
+  const data = (typeof simplified === 'object' && simplified !== null ? simplified : {}) as {
     actors?: Array<{
       name: string;
       nodes?: Array<{ name: string; type: string }>;
@@ -166,6 +173,29 @@ function isValidQualityIssue(value: unknown): value is QualityIssue {
   }
   const issue = value as Record<string, unknown>;
   return typeof issue.word === 'string' && typeof issue.suggestion === 'string';
+}
+
+function isValidTraceLink(value: unknown): value is TraceLink {
+  if (typeof value !== 'object' || value === null) {
+    return false;
+  }
+  const link = value as Record<string, unknown>;
+  return (
+    typeof link.requirement === 'string' &&
+    link.requirement.trim().length > 0 &&
+    typeof link.status === 'string' &&
+    link.status.trim().length > 0
+  );
+}
+
+function asTraceLink(value: TraceLink): TraceLink {
+  return {
+    reqId: typeof value.reqId === 'string' ? value.reqId : '',
+    requirement: value.requirement,
+    srsRef: typeof value.srsRef === 'string' ? value.srsRef : '',
+    component: typeof value.component === 'string' ? value.component : '',
+    status: value.status,
+  };
 }
 
 export const aiService = {
@@ -352,14 +382,18 @@ export const aiService = {
   ): Promise<{ markdown: string; html: string; mode: AiMode }> {
     const projectName = input.projectName.trim();
     const features = input.features.map((f) => f.trim()).filter(Boolean);
-    if (!projectName || features.length === 0) {
-      throw new AppError(400, '请填写项目名称和至少一个功能点');
+    const material = input.material?.trim() ?? '';
+    // 放宽校验：有上游需求素材即可生成（AI 自动从素材提炼项目名/功能点），
+    // 让 SRS 也能纳入「一句话端到端」闭环，无需手动重填。
+    const hasManualInput = Boolean(projectName) && features.length > 0;
+    if (!hasManualInput && !material) {
+      throw new AppError(400, '请提供上游需求素材，或填写项目名称和至少一个功能点');
     }
     const normalized: SrsInput = {
       projectName,
       features,
       background: input.background.trim(),
-      material: input.material?.trim() || undefined,
+      material: material || undefined,
       supplement: input.supplement,
     };
     try {
@@ -375,6 +409,34 @@ export const aiService = {
       });
       const markdown = stripCodeFence(raw);
       return { markdown, html: markdownToHtml(markdown), mode: currentMode() };
+    } catch (error) {
+      mapLlmError(error, '生成失败，请检查网络或稍后重试');
+    }
+  },
+
+  // ⑧ 需求追踪矩阵：具体需求 + SRS → 需求↔系统 的双向追踪链
+  async trace(
+    requirements: string,
+    srs: string,
+  ): Promise<{ links: TraceLink[]; summary: string; mode: AiMode }> {
+    const reqText = requirements.trim();
+    const srsText = srs.trim();
+    if (!reqText || !srsText) {
+      throw new AppError(400, '请提供「具体需求」与「SRS 文档」两份内容');
+    }
+    try {
+      const raw = await getLlmProvider().complete(prompts.trace(reqText, srsText), {
+        tag: 'trace',
+        temperature: 0.2,
+        maxTokens: 6000,
+      });
+      const parsed = extractJson<{ links?: unknown; summary?: unknown }>(raw);
+      const links = Array.isArray(parsed?.links)
+        ? parsed!.links.filter(isValidTraceLink).map(asTraceLink)
+        : [];
+      const summary =
+        typeof parsed?.summary === 'string' ? parsed.summary : `共建立 ${links.length} 条追踪链。`;
+      return { links, summary, mode: currentMode() };
     } catch (error) {
       mapLlmError(error, '生成失败，请检查网络或稍后重试');
     }

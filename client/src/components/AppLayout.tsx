@@ -1,5 +1,5 @@
-import { Suspense, useMemo } from 'react';
-import { Layout, Menu, Avatar, Dropdown, Typography, Tag, Spin, theme } from 'antd';
+import { Suspense, useMemo, useState } from 'react';
+import { Layout, Menu, Avatar, Button, Dropdown, Typography, Tag, Spin } from 'antd';
 import type { MenuProps } from 'antd';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
@@ -8,12 +8,17 @@ import {
   BranchesOutlined,
   BulbOutlined,
   DashboardOutlined,
+  DeploymentUnitOutlined,
   ExperimentOutlined,
   FileTextOutlined,
   FolderOpenOutlined,
   LogoutOutlined,
+  MenuFoldOutlined,
+  MenuUnfoldOutlined,
   OrderedListOutlined,
+  RocketOutlined,
   ScheduleOutlined,
+  SlidersOutlined,
   SolutionOutlined,
   UserOutlined,
 } from '@ant-design/icons';
@@ -22,8 +27,9 @@ import type { Role } from '../types';
 
 const { Header, Sider, Content } = Layout;
 
-// 需求工程流水线（顺序即生产顺序，与 src/pipeline.ts 一致）
-const AI_TOOL_ITEMS: MenuProps['items'] = [
+// 需求工程流水线（顺序即生产顺序，与 src/pipeline.ts 一致），含驾驶舱与提示词工坊
+const PIPELINE_ITEMS: MenuProps['items'] = [
+  { key: '/app/pipeline', icon: <RocketOutlined />, label: '流水线驾驶舱' },
   { key: '/app/tools/overview', icon: <BulbOutlined />, label: '① 产品概要' },
   { key: '/app/tools/interview', icon: <SolutionOutlined />, label: '② 访谈提纲' },
   { key: '/app/tools/requirements', icon: <OrderedListOutlined />, label: '③ 具体需求' },
@@ -31,13 +37,21 @@ const AI_TOOL_ITEMS: MenuProps['items'] = [
   { key: '/app/tools/istar', icon: <BranchesOutlined />, label: '⑤ i* 目标建模' },
   { key: '/app/tools/uml', icon: <ApartmentOutlined />, label: '⑥ UML 建模与预览' },
   { key: '/app/tools/srs', icon: <FileTextOutlined />, label: '⑦ SRS 规格说明书' },
+  { key: '/app/tools/trace', icon: <DeploymentUnitOutlined />, label: '⑧ 需求追踪矩阵' },
+  { key: '/app/workshop', icon: <SlidersOutlined />, label: '提示词工坊' },
 ];
 
 function buildMenu(role: Role): MenuProps['items'] {
+  const pipeline = {
+    key: 'tools',
+    icon: <ExperimentOutlined />,
+    label: '需求工程流水线',
+    children: PIPELINE_ITEMS,
+  };
   if (role === 'teacher') {
     return [
       { key: '/app/resources', icon: <FolderOpenOutlined />, label: '资源管理' },
-      { key: 'tools', icon: <ExperimentOutlined />, label: '需求工程流水线', children: AI_TOOL_ITEMS },
+      pipeline,
       { key: '/app/homework', icon: <ScheduleOutlined />, label: '作业管理' },
       { key: '/app/dashboard', icon: <DashboardOutlined />, label: '统计仪表盘' },
     ];
@@ -45,7 +59,7 @@ function buildMenu(role: Role): MenuProps['items'] {
   return [
     { key: '/app/browse', icon: <FolderOpenOutlined />, label: '课件浏览' },
     { key: '/app/my-homework', icon: <ScheduleOutlined />, label: '作业' },
-    { key: 'tools', icon: <ExperimentOutlined />, label: '需求工程流水线', children: AI_TOOL_ITEMS },
+    pipeline,
   ];
 }
 
@@ -54,11 +68,9 @@ export function AppLayout() {
   const location = useLocation();
   const user = useAuthStore((state) => state.user);
   const logout = useAuthStore((state) => state.logout);
-  const {
-    token: { colorBgContainer },
-  } = theme.useToken();
 
   const items = useMemo(() => buildMenu(user?.role ?? 'student'), [user?.role]);
+  const [collapsed, setCollapsed] = useState(false);
 
   const handleLogout = (): void => {
     logout();
@@ -74,22 +86,45 @@ export function AppLayout() {
     <Layout style={{ minHeight: '100vh' }}>
       <Sider
         theme="light"
-        width={220}
+        width={232}
         breakpoint="lg"
         collapsedWidth="0"
-        style={{ borderRight: '1px solid #f0f0f0' }}
+        collapsed={collapsed}
+        onCollapse={setCollapsed}
+        onBreakpoint={(broken) => setCollapsed(broken)}
+        trigger={null}
+        style={{ borderRight: '1px solid #eceef5' }}
       >
         <div
           style={{
-            height: 56,
+            height: 60,
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'center',
-            padding: '0 12px',
+            gap: 10,
+            padding: '0 18px',
           }}
         >
-          <Typography.Text strong style={{ fontSize: 15 }}>
-            需求工程教学辅助
+          <span
+            style={{
+              width: 34,
+              height: 34,
+              borderRadius: 10,
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#fff',
+              fontSize: 18,
+              background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
+              boxShadow: '0 6px 14px -4px rgba(99,102,241,0.6)',
+              flex: 'none',
+            }}
+          >
+            <ExperimentOutlined />
+          </span>
+          <Typography.Text strong style={{ fontSize: 15, lineHeight: 1.2 }}>
+            需求工程
+            <br />
+            教学辅助
           </Typography.Text>
         </div>
         <Menu
@@ -97,6 +132,7 @@ export function AppLayout() {
           items={items}
           selectedKeys={[location.pathname]}
           defaultOpenKeys={['tools']}
+          style={{ borderInlineEnd: 'none', padding: '4px 0' }}
           onClick={({ key }) => {
             if (key.startsWith('/')) {
               navigate(key);
@@ -106,30 +142,49 @@ export function AppLayout() {
       </Sider>
       <Layout>
         <Header
+          className="glass-header"
           style={{
-            background: colorBgContainer,
+            position: 'sticky',
+            top: 0,
+            zIndex: 10,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            padding: '0 20px',
+            padding: '0 22px',
           }}
         >
-          <Typography.Title level={4} style={{ margin: 0 }}>
-            需求工程教学辅助系统
-          </Typography.Title>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Button
+              type="text"
+              aria-label={collapsed ? '展开导航' : '收起导航'}
+              icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+              onClick={() => setCollapsed((v) => !v)}
+            />
+            <Typography.Title level={4} style={{ margin: 0, fontWeight: 700 }}>
+              需求工程教学辅助系统
+            </Typography.Title>
+          </div>
           <Dropdown menu={{ items: userMenu }} placement="bottomRight">
-            <span style={{ cursor: 'pointer', userSelect: 'none' }}>
-              <Avatar icon={<UserOutlined />} style={{ marginRight: 8 }} />
-              {user?.name}
-              <Tag color={user?.role === 'teacher' ? 'blue' : 'green'} style={{ marginLeft: 8 }}>
+            <span
+              style={{
+                cursor: 'pointer',
+                userSelect: 'none',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 8,
+                padding: '4px 8px',
+                borderRadius: 10,
+              }}
+            >
+              <Avatar size="small" icon={<UserOutlined />} style={{ background: '#6366f1' }} />
+              <span style={{ fontWeight: 500 }}>{user?.name}</span>
+              <Tag color={user?.role === 'teacher' ? 'geekblue' : 'green'} style={{ margin: 0 }}>
                 {user?.role === 'teacher' ? '教师' : '学生'}
               </Tag>
             </span>
           </Dropdown>
         </Header>
-        <Content
-          style={{ margin: 16, padding: 20, background: colorBgContainer, borderRadius: 8 }}
-        >
+        <Content style={{ margin: 18, padding: 22, background: '#ffffff', borderRadius: 16 }}>
           <Suspense
             fallback={
               <div style={{ textAlign: 'center', padding: '64px 0' }}>

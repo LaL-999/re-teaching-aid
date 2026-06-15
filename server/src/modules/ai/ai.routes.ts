@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { requireAuth } from '../../middleware/auth';
+import { requireAuth, requireRole } from '../../middleware/auth';
 import { aiController } from './ai.controller';
 
 export const aiRouter = Router();
@@ -19,3 +19,14 @@ aiRouter.post('/istar', aiController.istar);
 aiRouter.post('/uml/generate', aiController.generateUml);
 aiRouter.post('/uml/render', aiController.renderUml);
 aiRouter.post('/srs', aiController.srs);
+// ⑧ 需求追踪矩阵
+aiRouter.post('/trace', aiController.trace);
+
+// 提示词工坊：读取所有人可见；编辑/重置仅教师
+aiRouter.get('/prompt-templates', aiController.promptTemplates);
+aiRouter.put('/prompt-templates/:stage', requireRole('teacher'), aiController.updatePromptTemplate);
+aiRouter.post(
+  '/prompt-templates/:stage/reset',
+  requireRole('teacher'),
+  aiController.resetPromptTemplate,
+);

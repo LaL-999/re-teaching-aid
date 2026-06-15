@@ -15,4 +15,5 @@ export const PIPELINE_STAGES: PipelineStage[] = [
   { key: 'istar', num: '⑤', label: 'i* 目标建模', to: '/app/tools/istar' },
   { key: 'uml', num: '⑥', label: 'UML 建模', to: '/app/tools/uml' },
   { key: 'srs', num: '⑦', label: 'SRS 说明书', to: '/app/tools/srs' },
+  { key: 'trace', num: '⑧', label: '需求追踪', to: '/app/tools/trace' },
 ];

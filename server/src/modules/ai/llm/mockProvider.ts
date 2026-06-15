@@ -27,6 +27,8 @@ export class MockProvider implements LlmProvider {
         return mockUml(input);
       case 'srs':
         return mockSrs(input);
+      case 'trace':
+        return mockTrace(input);
       default:
         return '（离线 Mock）暂不支持的工具类型。';
     }
@@ -146,39 +148,73 @@ function mockInterview(domain: string): string {
 }
 
 // ---------- i* 模型 ----------
+// 输出结构化 JSON（与 ai.service 的 convertToIstarJson 期望一致），离线也能生成有效 piStar 模型。
 
 function mockIstar(requirement: string): string {
-  const actors: Array<{ name: string; goal: string }> = [];
+  const pairs: Array<{ name: string; goal: string }> = [];
   const re = /([^，。；,;\s]{1,12})(?:希望|想要|需要|期望)([^，。；,;]{1,30})/g;
   let match: RegExpExecArray | null;
-  while ((match = re.exec(requirement)) !== null && actors.length < 6) {
-    actors.push({ name: match[1]!.trim(), goal: match[2]!.trim() });
+  while ((match = re.exec(requirement)) !== null && pairs.length < 4) {
+    pairs.push({ name: match[1]!.trim(), goal: match[2]!.trim() });
   }
-  if (actors.length === 0) {
-    actors.push(
+  if (pairs.length === 0) {
+    pairs.push(
       { name: '用户', goal: '高效完成核心任务' },
-      { name: '系统管理员', goal: '保障系统稳定运行' },
+      { name: '系统', goal: '保障稳定运行' },
     );
   }
 
-  const lines: string[] = [
-    '%% i* 模型（iStar 2.0 文本表示）— 由需求描述生成',
-    `%% 原始需求：${requirement.slice(0, 60)}${requirement.length > 60 ? '…' : ''}`,
-    '',
-  ];
-  for (const a of actors) {
-    lines.push(`actor ${a.name} {`);
-    lines.push(`  goal      "${a.goal}"`);
-    lines.push(`  softgoal  "${a.name}满意度提升"`);
-    lines.push(`  task      "执行与「${a.goal}」相关的操作"`);
-    lines.push('}');
-    lines.push('');
-  }
-  lines.push('%% 依赖关系：depender -( dependum )-> dependee');
-  for (let i = 0; i < actors.length - 1; i += 1) {
-    lines.push(`${actors[i]!.name} -( ${actors[i + 1]!.goal} )-> ${actors[i + 1]!.name}`);
-  }
-  return lines.join('\n');
+  const links: Array<{ source: string; target: string; type: string; label?: string }> = [];
+  const actors = pairs.map((pair) => {
+    // 节点名内含参与者名，保证全局唯一（convertToIstarJson 以节点名做映射键）
+    const goalNode = pair.goal;
+    const taskNode = `执行「${pair.goal}」`;
+    const resNode = `${pair.name}的数据`;
+    const qualNode = `${pair.name}体验`;
+    // 同一 actor 内连边，满足 iStar 2.0 约束
+    links.push(
+      { source: taskNode, target: goalNode, type: 'AndRefinementLink' },
+      { source: resNode, target: taskNode, type: 'NeededByLink' },
+      { source: qualNode, target: goalNode, type: 'QualificationLink' },
+    );
+    return {
+      name: pair.name,
+      nodes: [
+        { name: goalNode, type: 'Goal' },
+        { name: taskNode, type: 'Task' },
+        { name: resNode, type: 'Resource' },
+        { name: qualNode, type: 'Quality' },
+      ],
+    };
+  });
+
+  return JSON.stringify({ actors, links });
+}
+
+// ---------- 需求追踪矩阵 ----------
+
+function mockTrace(input: string): string {
+  const reqBlock = input.match(/【具体需求】([\s\S]*?)(?:【SRS|$)/)?.[1] ?? input;
+  const items = reqBlock
+    .split('\n')
+    .map((line) => line.match(/^#{2,}\s*(.+)$/)?.[1]?.trim())
+    .filter((x): x is string => Boolean(x))
+    .map((heading) => heading.replace(/^模块\s*\d+[：:]\s*/, '').trim())
+    .slice(0, 8);
+  const reqs = items.length > 0 ? items : ['核心业务办理', '数据查询', '用户与权限'];
+
+  const links = reqs.map((req, index) => ({
+    reqId: `FR-${String(index + 1).padStart(2, '0')}`,
+    requirement: req,
+    srsRef: `§3 功能需求 / ${req}`,
+    component: `${req}模块`,
+    status: '已覆盖',
+  }));
+
+  return JSON.stringify({
+    links,
+    summary: `共建立 ${links.length} 条需求↔系统追踪链（离线模式基于标题匹配，建议接入真实大模型获得更精细的覆盖分析）。`,
+  });
 }
 
 // ---------- 需求质量检查（词典规则） ----------

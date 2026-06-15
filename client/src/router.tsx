@@ -38,6 +38,13 @@ const ReviewPage = lazy(() =>
 const IstarPage = lazy(() => import('./pages/ai/IstarPage').then((m) => ({ default: m.IstarPage })));
 const UmlPage = lazy(() => import('./pages/ai/UmlPage').then((m) => ({ default: m.UmlPage })));
 const SrsPage = lazy(() => import('./pages/ai/SrsPage').then((m) => ({ default: m.SrsPage })));
+const TracePage = lazy(() => import('./pages/ai/TracePage').then((m) => ({ default: m.TracePage })));
+const PipelineCockpitPage = lazy(() =>
+  import('./pages/ai/PipelineCockpitPage').then((m) => ({ default: m.PipelineCockpitPage })),
+);
+const PromptWorkshopPage = lazy(() =>
+  import('./pages/ai/PromptWorkshopPage').then((m) => ({ default: m.PromptWorkshopPage })),
+);
 
 export const router = createBrowserRouter(
   [
@@ -91,6 +98,7 @@ export const router = createBrowserRouter(
             </RoleGuard>
           ),
         },
+        { path: 'pipeline', element: <PipelineCockpitPage /> },
         { path: 'tools/overview', element: <OverviewPage /> },
         { path: 'tools/interview', element: <InterviewPage /> },
         { path: 'tools/requirements', element: <RequirementsPage /> },
@@ -98,6 +106,8 @@ export const router = createBrowserRouter(
         { path: 'tools/istar', element: <IstarPage /> },
         { path: 'tools/uml', element: <UmlPage /> },
         { path: 'tools/srs', element: <SrsPage /> },
+        { path: 'tools/trace', element: <TracePage /> },
+        { path: 'workshop', element: <PromptWorkshopPage /> },
       ],
     },
     { path: '/', element: <Navigate to="/app" replace /> },

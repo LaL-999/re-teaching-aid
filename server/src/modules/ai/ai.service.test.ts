@@ -48,10 +48,16 @@ describe('aiService 输入校验（对应验收异常场景）', () => {
     );
   });
 
-  it('SRS：缺少名称或功能点 → 请填写项目名称和至少一个功能点', async () => {
+  it('SRS：既无素材也无名称/功能点 → 提示二者其一', async () => {
     await expect(
       aiService.srs({ projectName: '', features: [], background: '' }),
-    ).rejects.toThrowError('请填写项目名称和至少一个功能点');
+    ).rejects.toThrowError('请提供上游需求素材，或填写项目名称和至少一个功能点');
+  });
+
+  it('需求追踪：缺少需求或 SRS → 请提供两份内容', async () => {
+    await expect(aiService.trace('', 'srs 内容')).rejects.toThrowError(
+      '请提供「具体需求」与「SRS 文档」两份内容',
+    );
   });
 });
 
@@ -92,5 +98,33 @@ describe('aiService 正常路径（离线 Mock）', () => {
     });
     expect(result.markdown).toContain('# 《校园外卖系统》');
     expect(result.html).toContain('<!doctype html>');
+  });
+
+  it('SRS 素材驱动：仅有上游素材也能生成（无需手填名称/功能点）', async () => {
+    const result = await aiService.srs({
+      projectName: '',
+      features: [],
+      background: '',
+      material: '# 校园外卖系统\n## 五、核心功能概要\n- 下单\n- 支付',
+    });
+    expect(result.markdown.length).toBeGreaterThan(0);
+    expect(result.html).toContain('<!doctype html>');
+  });
+
+  it('i*：离线生成结构化 JSON（actors + links，可被 piStar 转换）', async () => {
+    const result = await aiService.istar('顾客希望准时收到外卖，商家希望快速出餐');
+    const parsed = JSON.parse(result.code) as { actors?: unknown[]; istar?: string };
+    expect(Array.isArray(parsed.actors)).toBe(true);
+    expect(parsed.actors!.length).toBeGreaterThan(0);
+    expect(parsed.istar).toBe('2.0');
+  });
+
+  it('需求追踪：建立需求↔系统链路', async () => {
+    const result = await aiService.trace(
+      '# 具体功能需求\n## 模块 1：在线下单\n## 模块 2：支付订单',
+      '# SRS\n## 3 功能需求\n### FR-01 在线下单\n### FR-02 支付订单',
+    );
+    expect(result.links.length).toBeGreaterThan(0);
+    expect(result.links[0]).toHaveProperty('status');
   });
 });

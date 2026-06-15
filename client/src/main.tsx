@@ -5,6 +5,7 @@ import { ConfigProvider, App as AntdApp } from 'antd';
 import zhCN from 'antd/locale/zh_CN';
 import { router } from './router';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { themeConfig } from './theme';
 import './index.css';
 
 const rootElement = document.getElementById('root');
@@ -14,7 +15,7 @@ if (!rootElement) {
 
 ReactDOM.createRoot(rootElement).render(
   <React.StrictMode>
-    <ConfigProvider locale={zhCN} theme={{ token: { colorPrimary: '#1677ff', borderRadius: 6 } }}>
+    <ConfigProvider locale={zhCN} theme={themeConfig}>
       <AntdApp>
         <ErrorBoundary>
           <RouterProvider router={router} future={{ v7_startTransition: true }} />

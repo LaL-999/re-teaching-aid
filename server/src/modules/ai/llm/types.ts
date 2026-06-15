@@ -6,7 +6,8 @@ export type AiToolTag =
   | 'interview'
   | 'istar'
   | 'uml'
-  | 'srs';
+  | 'srs'
+  | 'trace';
 
 export interface LlmMessage {
   role: 'system' | 'user' | 'assistant';
