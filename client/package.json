@@ -16,7 +16,6 @@
     "@ant-design/icons": "^5.5.2",
     "antd": "^5.22.7",
     "axios": "^1.7.9",
-    "re-teaching-aid": "file:..",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^6.28.1",

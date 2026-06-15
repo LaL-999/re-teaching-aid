@@ -23,7 +23,6 @@
     "jsonwebtoken": "^9.0.2",
     "multer": "^1.4.5-lts.1",
     "plantuml-encoder": "^1.4.0",
-    "re-teaching-aid": "file:..",
     "zod": "^3.24.1"
   },
   "devDependencies": {
