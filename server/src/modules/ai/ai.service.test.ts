@@ -85,9 +85,11 @@ describe('aiService 正常路径（离线 Mock）', () => {
     expect(result.requirements).toContain('用户故事');
   });
 
-  it('审核优化：离线模式原样返回内容', async () => {
+  it('审核优化：返回优化后内容 + 改动说明', async () => {
     const result = await aiService.refine('i* 目标建模', 'actor 用户 { goal "下单" }');
     expect(result.refined).toContain('actor 用户');
+    expect(result.refined).not.toContain('===优化后内容===');
+    expect(result.notes.length).toBeGreaterThan(0);
   });
 
   it('SRS 返回 markdown 与 html', async () => {

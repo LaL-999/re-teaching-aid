@@ -124,8 +124,12 @@ function mockRequirements(source: string): string {
 // ---------- 审核优化（refine） ----------
 
 function mockRefine(content: string): string {
-  // 离线模式无法真正改写，原样返回；接入真实大模型可获得实质优化。
-  return content;
+  // 离线模式无法真正改写：给出占位说明 + 原内容（接入真实大模型可获得逐条实质优化）。
+  return [
+    '- （离线占位）已做一致性与可度量性的基础检查；接入真实大模型可获得逐条实质优化说明与改写。',
+    '===优化后内容===',
+    content,
+  ].join('\n');
 }
 
 // ---------- 访谈提纲 ----------

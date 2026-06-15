@@ -34,6 +34,20 @@ function stripCodeFence(raw: string): string {
   return (fenced ? fenced[1]! : trimmed).trim();
 }
 
+const REFINE_MARKER = '===优化后内容===';
+
+/** 拆分「审核优化」输出：分隔符之前为改动说明(notes)，之后为优化后内容(refined)。 */
+function splitRefineOutput(raw: string): { notes: string; refined: string } {
+  const index = raw.indexOf(REFINE_MARKER);
+  if (index === -1) {
+    return { notes: '', refined: raw };
+  }
+  const notes = raw.slice(0, index).trim();
+  const refined = raw.slice(index + REFINE_MARKER.length).trim();
+  // 若分隔符后为空（模型未给内容），退回原始输出，避免清空产物
+  return { notes, refined: refined || raw };
+}
+
 /** 生成 UUID v4 */
 function generateUuid(): string {
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
@@ -324,7 +338,7 @@ export const aiService = {
   async refine(
     stageLabel: string,
     content: string,
-  ): Promise<{ refined: string; mode: AiMode }> {
+  ): Promise<{ refined: string; notes: string; mode: AiMode }> {
     const trimmed = content.trim();
     if (!trimmed) {
       throw new AppError(400, '没有可优化的内容，请先生成');
@@ -336,7 +350,8 @@ export const aiService = {
         temperature: 0.3,
         maxTokens: 8000,
       });
-      return { refined: stripCodeFence(raw), mode: currentMode() };
+      const { notes, refined } = splitRefineOutput(raw);
+      return { refined: stripCodeFence(refined), notes, mode: currentMode() };
     } catch (error) {
       mapLlmError(error, '生成失败，请检查网络或稍后重试');
     }

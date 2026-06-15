@@ -45,12 +45,15 @@ export const aiService = {
     return data;
   },
 
-  // 通用「审核并优化」
-  async refine(stage: string, content: string): Promise<{ refined: string; mode: AiMode }> {
-    const { data } = await http.post<{ refined: string; mode: AiMode }>('/api/ai/refine', {
-      stage,
-      content,
-    });
+  // 通用「审核并优化」：返回优化后内容 + 改动说明
+  async refine(
+    stage: string,
+    content: string,
+  ): Promise<{ refined: string; notes: string; mode: AiMode }> {
+    const { data } = await http.post<{ refined: string; notes: string; mode: AiMode }>(
+      '/api/ai/refine',
+      { stage, content },
+    );
     return data;
   },
 

@@ -25,7 +25,7 @@ const DIAGRAM_OPTIONS: Array<{ value: UmlDiagramType; label: string }> = [
 
 /** ⑥ UML 建模与预览 —— AI 生成 PlantUML 代码并在线编译预览，改码即重编。 */
 export function UmlPage() {
-  const { message } = App.useApp();
+  const { message, modal } = App.useApp();
   const description = useWorkbench((s) => s.data.uml.description);
   const diagramType = useWorkbench((s) => s.data.uml.diagramType);
   const code = useWorkbench((s) => s.data.uml.code);
@@ -76,7 +76,19 @@ export function UmlPage() {
       const result = await aiService.refine('UML / PlantUML 代码', code);
       patch('uml', { code: result.refined });
       saveVersion('uml', '审核优化', result.refined);
-      message.success(result.mode === 'mock' ? '离线模式未实质改写' : '已审核并优化');
+      if (result.mode === 'mock') {
+        message.info('离线模式未实质改写；接入真实大模型可获得逐条优化。');
+      } else {
+        modal.info({
+          title: '✨ 本次审核优化说明',
+          width: 600,
+          content: (
+            <div style={{ whiteSpace: 'pre-wrap', maxHeight: '50vh', overflow: 'auto' }}>
+              {result.notes.trim() || '内容已较完善，未做大改动。'}
+            </div>
+          ),
+        });
+      }
     } catch (err) {
       message.error(getApiErrorMessage(err));
     } finally {

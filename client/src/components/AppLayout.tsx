@@ -83,7 +83,7 @@ export function AppLayout() {
   ];
 
   return (
-    <Layout style={{ minHeight: '100vh' }}>
+    <Layout hasSider style={{ minHeight: '100vh' }}>
       <Sider
         theme="light"
         width={232}
@@ -93,7 +93,14 @@ export function AppLayout() {
         onCollapse={setCollapsed}
         onBreakpoint={(broken) => setCollapsed(broken)}
         trigger={null}
-        style={{ borderRight: '1px solid #eceef5' }}
+        style={{
+          position: 'sticky',
+          insetInlineStart: 0,
+          top: 0,
+          height: '100vh',
+          overflow: 'auto',
+          borderRight: '1px solid #eceef5',
+        }}
       >
         <div
           style={{

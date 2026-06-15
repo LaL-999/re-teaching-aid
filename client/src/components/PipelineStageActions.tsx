@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { App, Button, Popconfirm, Space } from 'antd';
+import { App, Button, Modal, Popconfirm, Space, Typography } from 'antd';
 import {
   ArrowRightOutlined,
   ClearOutlined,
@@ -10,6 +10,7 @@ import { useNavigate } from 'react-router-dom';
 import { aiService } from '../services/aiService';
 import { getApiErrorMessage } from '../services/http';
 import { CopyButton } from './CopyButton';
+import { MarkdownView } from './MarkdownView';
 import { saveText } from '../utils/file';
 
 export interface NextTarget {
@@ -41,7 +42,7 @@ interface PipelineStageActionsProps {
 
 /**
  * 流水线车间产物的统一操作区：复制 / 下载 / 审核并优化 / 发送到下游车间 / 清空。
- * 把「数据流转」「每阶段自带优化」「可手动清空」三件事收敛到一处复用。
+ * 审核优化后弹出「优化说明」，让用户清楚 AI 改了什么、为什么改（可在「版本」里对比前后）。
  */
 export function PipelineStageActions({
   content,
@@ -56,6 +57,8 @@ export function PipelineStageActions({
   const { message } = App.useApp();
   const navigate = useNavigate();
   const [refining, setRefining] = useState(false);
+  const [notesOpen, setNotesOpen] = useState(false);
+  const [notes, setNotes] = useState('');
 
   const handleRefine = async (): Promise<void> => {
     setRefining(true);
@@ -63,9 +66,10 @@ export function PipelineStageActions({
       const result = await aiService.refine(stageLabel, content);
       onRefined(result.refined);
       if (result.mode === 'mock') {
-        message.info('离线模式下未实质改写内容；接入真实大模型可获得审核优化。');
+        message.info('离线模式下未实质改写内容；接入真实大模型可获得逐条审核优化。');
       } else {
-        message.success('已审核并优化');
+        setNotes(result.notes.trim() || '本次未发现需要改写之处，内容已较完善。');
+        setNotesOpen(true);
       }
     } catch (err) {
       message.error(getApiErrorMessage(err));
@@ -81,38 +85,69 @@ export function PipelineStageActions({
   };
 
   return (
-    <Space wrap>
-      <CopyButton text={content} label={copyLabel} />
-      <Button icon={<DownloadOutlined />} onClick={() => saveText(content, downloadName, downloadName.endsWith('.json') ? 'application/json;charset=utf-8' : 'text/plain;charset=utf-8')}>
-        下载
-      </Button>
-      {showRefine && (
-        <Button icon={<ThunderboltOutlined />} loading={refining} onClick={handleRefine}>
-          审核并优化
-        </Button>
-      )}
-      {nextTargets.map((target) => (
+    <>
+      <Space wrap>
+        <CopyButton text={content} label={copyLabel} />
         <Button
-          key={target.to}
-          type="primary"
-          ghost
-          icon={<ArrowRightOutlined />}
-          onClick={() => handleSend(target)}
+          icon={<DownloadOutlined />}
+          onClick={() =>
+            saveText(
+              content,
+              downloadName,
+              downloadName.endsWith('.json')
+                ? 'application/json;charset=utf-8'
+                : 'text/plain;charset=utf-8',
+            )
+          }
         >
-          {target.label}
+          下载
         </Button>
-      ))}
-      <Popconfirm
-        title="清空本车间的输入与产物？"
-        okText="清空"
-        cancelText="取消"
-        okButtonProps={{ danger: true }}
-        onConfirm={onClear}
+        {showRefine && (
+          <Button icon={<ThunderboltOutlined />} loading={refining} onClick={handleRefine}>
+            审核并优化
+          </Button>
+        )}
+        {nextTargets.map((target) => (
+          <Button
+            key={target.to}
+            type="primary"
+            ghost
+            icon={<ArrowRightOutlined />}
+            onClick={() => handleSend(target)}
+          >
+            {target.label}
+          </Button>
+        ))}
+        <Popconfirm
+          title="清空本车间的输入与产物？"
+          okText="清空"
+          cancelText="取消"
+          okButtonProps={{ danger: true }}
+          onConfirm={onClear}
+        >
+          <Button danger icon={<ClearOutlined />}>
+            清空
+          </Button>
+        </Popconfirm>
+      </Space>
+
+      <Modal
+        open={notesOpen}
+        title="✨ 本次审核优化说明"
+        onCancel={() => setNotesOpen(false)}
+        onOk={() => setNotesOpen(false)}
+        okText="知道了"
+        cancelButtonProps={{ style: { display: 'none' } }}
+        width={640}
+        destroyOnHidden
       >
-        <Button danger icon={<ClearOutlined />}>
-          清空
-        </Button>
-      </Popconfirm>
-    </Space>
+        <Typography.Paragraph type="secondary" style={{ marginTop: 0 }}>
+          已应用优化后的内容。下面是 AI 本次具体改了什么、为什么改；如需对照前后差异，可点开「版本」按钮选历史版本「对比」。
+        </Typography.Paragraph>
+        <div style={{ maxHeight: '52vh', overflow: 'auto' }}>
+          <MarkdownView markdown={notes} />
+        </div>
+      </Modal>
+    </>
   );
 }
